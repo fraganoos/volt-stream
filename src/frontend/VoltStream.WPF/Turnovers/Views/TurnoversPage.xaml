@@ -173,62 +173,78 @@
                         </Style>
                     </DataGridTextColumn.HeaderStyle>
                 </DataGridTextColumn>
-
-                <DataGridTextColumn
-                    Width="3*"
-                    Binding="{Binding FormattedDescription}"
-                    Header="Izoh">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Padding" Value="5,0" />
-                            <Setter Property="TextAlignment" Value="Left" />
-                            <Setter Property="TextWrapping" Value="Wrap" />
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                    <DataGridTextColumn.HeaderStyle>
+                <DataGridTemplateColumn Width="3*">
+                    <DataGridTemplateColumn.Header>
+                        <TextBlock Text="Izoh" HorizontalAlignment="Center" VerticalAlignment="Center" FontWeight="Bold" />
+                    </DataGridTemplateColumn.Header>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <ContentPresenter Content="{Binding FormattedTextBlock}" />
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                    <DataGridTemplateColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="HorizontalContentAlignment" Value="Center" />
                             <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
-                    </DataGridTextColumn.HeaderStyle>
-                </DataGridTextColumn>
-
-                <DataGridTextColumn
-                    Width="*"
-                    Binding="{Binding Debit, StringFormat={}{0:N0}}"
-                    Header="Debit">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Padding" Value="5,0" />
-                            <Setter Property="TextAlignment" Value="Right" />
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                    <DataGridTextColumn.HeaderStyle>
+                    </DataGridTemplateColumn.HeaderStyle>
+                </DataGridTemplateColumn>
+                <DataGridTemplateColumn Width="0.7*">
+                    <DataGridTemplateColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="HorizontalContentAlignment" Value="Center" />
-                            <Setter Property="VerticalContentAlignment" Value="Center" />
                         </Style>
-                    </DataGridTextColumn.HeaderStyle>
-                </DataGridTextColumn>
-
-                <DataGridTextColumn
-                    Width="*"
-                    Binding="{Binding Credit, StringFormat={}{0:N0}}"
-                    Header="Kredit">
-                    <DataGridTextColumn.ElementStyle>
-                        <Style TargetType="TextBlock">
-                            <Setter Property="Padding" Value="5,0" />
-                            <Setter Property="TextAlignment" Value="Right" />
-                        </Style>
-                    </DataGridTextColumn.ElementStyle>
-                    <DataGridTextColumn.HeaderStyle>
-                        <Style TargetType="DataGridColumnHeader">
-                            <Setter Property="HorizontalContentAlignment" Value="Center" />
-                            <Setter Property="VerticalContentAlignment" Value="Center" />
-                        </Style>
-                    </DataGridTextColumn.HeaderStyle>
-                </DataGridTextColumn>
-
+                    </DataGridTemplateColumn.HeaderStyle>
+                    <DataGridTemplateColumn.Header>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Debit" Foreground="DarkRed" FontWeight="Bold"/>
+                            <TextBlock Text=" / " Foreground="Black" FontWeight="Bold"/>
+                            <TextBlock Text="Kredit" Foreground="Black" FontWeight="Bold"/>
+                        </StackPanel>
+                    </DataGridTemplateColumn.Header>
+                    <DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <Grid Margin="5,0">
+                                <TextBlock
+                                    Text="{Binding Debit, StringFormat={}{0:N0}}"
+                                    Foreground="DarkRed"
+                                    HorizontalAlignment="Right">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Debit, Converter={x:Null}}" Value="0">
+                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding OperationType}" Value="Sale">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding Credit}" Value="0">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                                <TextBlock
+                                    Text="{Binding Credit, StringFormat={}{0:N0}}"
+                                    Foreground="Black"
+                                    HorizontalAlignment="Right">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding Debit}" Value="0">
+                                                    <Setter Property="Visibility" Value="Visible"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+                            </Grid>
+                        </DataTemplate>
+                    </DataGridTemplateColumn.CellTemplate>
+                </DataGridTemplateColumn>
                 <DataGridTemplateColumn Width="100" Header="Amallar">
                     <DataGridTemplateColumn.HeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
