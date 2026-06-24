@@ -4,17 +4,32 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Globalization;
 using System.Windows;
 using System.Windows.Controls;
+using VoltStream.WPF.Commons.Services;
 using VoltStream.WPF.Sales_history.Models;
 
 public partial class SalesHistoryPage : Page
 {
     private readonly SalesHistoryPageViewModel vm;
+    
     public SalesHistoryPage(IServiceProvider serviceProvider)
     {
         InitializeComponent();
 
         vm = serviceProvider.GetRequiredService<SalesHistoryPageViewModel>();
         DataContext = vm;
+        
+        Loaded += (s, e) => RegisterFocusNavigation();
+    }
+    
+    private void RegisterFocusNavigation()
+    {
+        FocusNavigator.RegisterElements([
+            cbxCustomer,
+            beginDate.TextBox,
+            endDate.TextBox,
+            cbxCategory,
+            cbxProductName
+        ]);
     }
 
     private async void BeginDate_LostFocus(object sender, RoutedEventArgs e)
