@@ -8,6 +8,13 @@ using System.Windows.Threading;
 
 public static class FocusNavigator
 {
+    #region Configuration (Optional - for advanced scenarios)
+
+    public static Func<UIElement, bool>? CustomFocusabilityChecker { get; set; }
+    public static Action<UIElement>? CustomFocusHandler { get; set; }
+
+    #endregion
+
     #region Private Classes
 
     private class FocusContext
@@ -52,9 +59,7 @@ public static class FocusNavigator
         lock (_lock)
         {
             if (ViewContexts.TryGetValue(rootView, out var oldContext))
-            {
                 CleanupContext(oldContext);
-            }
 
             var context = new FocusContext
             {
@@ -100,9 +105,7 @@ public static class FocusNavigator
             }
 
             if (context.ClickHandlers.TryGetValue(triggerElement, out var oldHandler))
-            {
                 triggerElement.Click -= oldHandler;
-            }
 
             void handler(object sender, RoutedEventArgs e)
             {
@@ -184,9 +187,7 @@ public static class FocusNavigator
             void navigationHandler(object sender, System.Windows.Navigation.NavigationEventArgs e)
             {
                 if (e.Content != page)
-                {
                     UnregisterView(page);
-                }
             }
 
             void loadedHandler(object sender, RoutedEventArgs e)
@@ -205,9 +206,7 @@ public static class FocusNavigator
             {
                 page.Unloaded -= cleanupNavigationHandler;
                 if (page.NavigationService is not null)
-                {
                     page.NavigationService.Navigated -= navigationHandler;
-                }
             }
 
             page.Unloaded += cleanupNavigationHandler;
@@ -257,7 +256,7 @@ public static class FocusNavigator
             nextElement = element switch
             {
                 TextBox tb => HandleTextBoxNavigation(e, tb, currentIdx, shift, context.FocusOrder),
-                ComboBox => HandleComboBoxNavigation(e, currentIdx, shift, context.FocusOrder),
+                ComboBox cb => HandleComboBoxNavigation(e, currentIdx, shift, context.FocusOrder, cb),
                 _ => HandleGeneralNavigation(e, currentIdx, shift, context.FocusOrder)
             };
         }
@@ -288,11 +287,11 @@ public static class FocusNavigator
         };
     }
 
-    private static UIElement? HandleComboBoxNavigation(KeyEventArgs e, int currentIdx, bool shift, List<UIElement> focusOrder)
+    private static UIElement? HandleComboBoxNavigation(KeyEventArgs e, int currentIdx, bool shift, List<UIElement> focusOrder, ComboBox comboBox)
     {
         return e.Key switch
         {
-            Key.Down or Key.Up => null,
+            Key.Down or Key.Up when comboBox.IsDropDownOpen => null,
             Key.Right => GetNextFocusableElement(focusOrder, currentIdx, !shift),
             Key.Left => GetNextFocusableElement(focusOrder, currentIdx, shift),
             _ => null
@@ -319,9 +318,7 @@ public static class FocusNavigator
             int nextIdx = (currentIdx + i * step + count) % count;
 
             if (IsElementFocusable(focusOrder[nextIdx]) && nextIdx != currentIdx)
-            {
                 return focusOrder[nextIdx];
-            }
         }
 
         return null;
@@ -332,22 +329,60 @@ public static class FocusNavigator
         if (element.Visibility != Visibility.Visible || !element.IsEnabled)
             return false;
 
+        if (!IsParentChainVisible(element))
+            return false;
+
+        if (CustomFocusabilityChecker is not null)
+            return CustomFocusabilityChecker(element);
+
         return element switch
         {
             TextBox tb => tb.IsTabStop,
             ComboBox => true,
             Button btn => btn.IsTabStop,
-            _ => true
+            UserControl => true,
+            _ => element.Focusable
         };
+    }
+
+    private static bool IsParentChainVisible(UIElement element)
+    {
+        DependencyObject parent = VisualTreeHelper.GetParent(element);
+        while (parent is not null)
+        {
+            if (parent is UIElement parentElement)
+                if (parentElement.Visibility != Visibility.Visible || !parentElement.IsEnabled)
+                    return false;
+
+            parent = VisualTreeHelper.GetParent(parent);
+        }
+
+        DependencyObject logicalParent = LogicalTreeHelper.GetParent(element);
+        while (logicalParent is not null)
+        {
+            if (logicalParent is UIElement logicalElement)
+                if (logicalElement.Visibility != Visibility.Visible || !logicalElement.IsEnabled)
+                    return false;
+
+            logicalParent = LogicalTreeHelper.GetParent(logicalParent);
+        }
+
+        return true;
     }
 
     public static void FocusElement(UIElement element)
     {
-        if (element == null) return;
+        if (element is null) return;
 
         element.Dispatcher.BeginInvoke(new Action(() =>
         {
             element.Focus();
+
+            if (CustomFocusHandler is not null)
+            {
+                CustomFocusHandler(element);
+                return;
+            }
 
             switch (element)
             {
@@ -362,8 +397,68 @@ public static class FocusNavigator
                         innerTextBox.SelectAll();
                     }
                     break;
+
+                case UserControl uc:
+                    TryFocusInnerControl(uc);
+                    break;
             }
         }), DispatcherPriority.Input);
+    }
+
+    private static void TryFocusInnerControl(UserControl userControl)
+    {
+        if (FindVisualChild<ComboBox>(userControl) is ComboBox combo)
+        {
+            combo.Focus();
+            return;
+        }
+
+        if (FindVisualChild<TextBox>(userControl) is TextBox textBox)
+        {
+            textBox.Focus();
+            textBox.SelectAll();
+            return;
+        }
+
+        if (FindFirstFocusableChild(userControl) is UIElement focusable)
+            focusable.Focus();
+    }
+
+    private static UIElement? FindFirstFocusableChild(DependencyObject parent)
+    {
+        if (parent is null) return null;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+
+            if (child is UIElement element && element.Focusable && element.IsEnabled && element.Visibility == Visibility.Visible)
+                return element;
+
+            var result = FindFirstFocusableChild(child);
+            if (result is not null)
+                return result;
+        }
+
+        return null;
+    }
+
+    private static T? FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+    {
+        if (parent is null) return null;
+
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T result)
+                return result;
+
+            var childOfChild = FindVisualChild<T>(child);
+            if (childOfChild is not null)
+                return childOfChild;
+        }
+
+        return null;
     }
 
     private static void CleanupContext(FocusContext context)

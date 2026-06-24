@@ -78,6 +78,26 @@ public partial class PaymentsPage : Page
     {
         WeakReferenceMessenger.Default.Register<FocusRequestMessage>(this, OnFocusRequestMessage);
         WeakReferenceMessenger.Default.Register<OpenDialogMessage<PayDiscountData>>(this, OnOpenDiscountWindowMessage);
+        RegisterFocusNavigation();
+    }
+
+    private void RegisterFocusNavigation()
+    {
+        FocusNavigator.RegisterElements([
+            PaymentDate.TextBox,
+            CustomerName,
+            CurrencyType,
+            Kurs,
+            Summa,
+            Kirim,
+            Chiqim,
+            Discription,
+            btnPaymant,
+            btnDiscount
+        ]);
+        
+        FocusNavigator.SetFocusRedirect(btnPaymant, PaymentDate.TextBox);
+        FocusNavigator.SetFocusRedirect(btnDiscount, PaymentDate.TextBox);
     }
 
     private void PaymentsPage_Unloaded(object sender, RoutedEventArgs e)

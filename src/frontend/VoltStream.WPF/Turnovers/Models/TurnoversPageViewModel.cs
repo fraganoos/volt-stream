@@ -641,7 +641,7 @@ public partial class TurnoversPageViewModel : ViewModelBase
 
         var descriptionTb = new TextBlock
         {
-            FontSize = 11,
+            FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
             Padding = new Thickness(3,5,3,0),
             VerticalAlignment = VerticalAlignment.Center,
@@ -649,7 +649,7 @@ public partial class TurnoversPageViewModel : ViewModelBase
         };
 
         string fullDesc = op.Description ?? op.FormattedDescription ?? "";
-        string[] lines = fullDesc.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        string[] lines = fullDesc.Split(['\n', '\r'], StringSplitOptions.RemoveEmptyEntries);
 
         int maxNameLen = 0;
         int maxCalcLen = 0;
@@ -664,17 +664,17 @@ public partial class TurnoversPageViewModel : ViewModelBase
 
             if (lastDash != -1 && firstEqual != -1 && firstEqual > lastDash)
             {
-                string namePart = line.Substring(0, lastDash).Trim();
+                string namePart = line[..lastDash].Trim();
                 if (namePart.Length > maxNameLen) maxNameLen = namePart.Length;
 
-                string calcPart = line.Substring(lastDash + 1, firstEqual - (lastDash + 1)).Trim();
+                string calcPart = line[(lastDash + 1)..firstEqual].Trim();
                 if (calcPart.Length > maxCalcLen) maxCalcLen = calcPart.Length;
 
                 string sumPart;
                 if (firstBracket != -1 && firstBracket > firstEqual)
-                    sumPart = line.Substring(firstEqual + 1, firstBracket - (firstEqual + 1)).Trim();
+                    sumPart = line[(firstEqual + 1)..firstBracket].Trim();
                 else
-                    sumPart = line.Substring(firstEqual + 1).Trim();
+                    sumPart = line[(firstEqual + 1)..].Trim();
 
                 if (sumPart.Length > maxSumLen) maxSumLen = sumPart.Length;
             }
@@ -691,7 +691,7 @@ public partial class TurnoversPageViewModel : ViewModelBase
                 insideSavdo = true;
                 descriptionTb.Inlines.Add(new Run(line) { FontWeight = FontWeights.Bold });
             }
-            else if (insideSavdo && line.Contains("-") && line.Contains("="))
+            else if (insideSavdo && line.Contains('-') && line.Contains('='))
             {
                 int lastDash = line.LastIndexOf('-');
                 int firstEqual = line.IndexOf('=');
@@ -700,21 +700,21 @@ public partial class TurnoversPageViewModel : ViewModelBase
                 if (lastDash != -1 && firstEqual != -1 && firstEqual > lastDash)
                 {
                     // A. Mahsulot nomi (Bold)
-                    string namePart = line.Substring(0, lastDash).Trim();
+                    string namePart = line[..lastDash].Trim();
                     descriptionTb.Inlines.Add(new Run(namePart.PadRight(maxNameLen + 1)) { FontWeight = FontWeights.Bold });
 
                     // B. Hisob-kitob
                     descriptionTb.Inlines.Add(new Run("- "));
-                    string calcPart = line.Substring(lastDash + 1, firstEqual - (lastDash + 1)).Trim();
+                    string calcPart = line[(lastDash + 1)..firstEqual].Trim();
                     descriptionTb.Inlines.Add(new Run(calcPart.PadRight(maxCalcLen + 1)));
 
                     // C. Summa (Bold)
                     descriptionTb.Inlines.Add(new Run("= "));
                     string sumPart;
                     if (firstBracket != -1 && firstBracket > firstEqual)
-                        sumPart = line.Substring(firstEqual + 1, firstBracket - (firstEqual + 1)).Trim();
+                        sumPart = line[(firstEqual + 1)..firstBracket].Trim();
                     else
-                        sumPart = line.Substring(firstEqual + 1).Trim();
+                        sumPart = line[(firstEqual + 1)..].Trim();
 
                     // PadRight bu yerda summadan keyin kerakli bo'shliqni o'zi qo'shadi
                     descriptionTb.Inlines.Add(new Run(sumPart.PadRight(maxSumLen + 1)) { FontWeight = FontWeights.Bold });
@@ -722,16 +722,16 @@ public partial class TurnoversPageViewModel : ViewModelBase
                     // D. Chegirma qismi (Normal)
                     if (firstBracket != -1 && firstBracket > firstEqual)
                     {
-                        descriptionTb.Inlines.Add(new Run(line.Substring(firstBracket).Trim()));
+                        descriptionTb.Inlines.Add(new Run(line[firstBracket..].Trim()));
                     }
                 }
                 else { descriptionTb.Inlines.Add(new Run(line)); }
             }
-            else if (line.Contains(":"))
+            else if (line.Contains(':'))
             {
                 int colonIndex = line.IndexOf(':');
-                descriptionTb.Inlines.Add(new Run(line.Substring(0, colonIndex + 1)) { FontWeight = FontWeights.Bold });
-                descriptionTb.Inlines.Add(new Run(line.Substring(colonIndex + 1)));
+                descriptionTb.Inlines.Add(new Run(line[..(colonIndex + 1)]) { FontWeight = FontWeights.Bold });
+                descriptionTb.Inlines.Add(new Run(line[(colonIndex + 1)..]));
 
                 if (trimmedLine.StartsWith("Jami:", StringComparison.OrdinalIgnoreCase) ||
                     trimmedLine.StartsWith("Chegirma:", StringComparison.OrdinalIgnoreCase))
@@ -747,7 +747,7 @@ public partial class TurnoversPageViewModel : ViewModelBase
 
         AddSimpleCell(grid, row, 2, amountText, TextAlignment.Right, FontWeights.Bold, 12, new Thickness(0.5, 0.5, 0.5, 0.5), amountBrush);
     }
-    // 2. Header o'zgarishi
+
     private void AddRowHeader(Grid grid, string date, string description, string debitKreditLabel, double height)
     {
         int row = grid.RowDefinitions.Count;
@@ -779,7 +779,7 @@ public partial class TurnoversPageViewModel : ViewModelBase
         Grid.SetColumn(border, 2);
         grid.Children.Add(border);
     }
-    // 3. Yangi Jami qismini yaratish
+
     private void AddRowTotalNew(Grid grid, decimal totalCredit, decimal totalDebit, double height)
     {
         int row1 = grid.RowDefinitions.Count;

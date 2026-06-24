@@ -2,6 +2,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using System.Windows.Controls;
+using VoltStream.WPF.Commons.Services;
 using VoltStream.WPF.Turnovers.Models;
 
 public partial class TurnoversPage : Page
@@ -11,6 +12,14 @@ public partial class TurnoversPage : Page
         InitializeComponent();
         DataContext = App.Services!.GetRequiredService<TurnoversPageViewModel>();
 
-        cbxCustomer.Focus();
+        Loaded += (s, e) => RegisterFocusNavigation();
+    }
+    
+    private void RegisterFocusNavigation()
+    {
+        FocusNavigator.RegisterElements([
+            cbxCustomer,
+            MyDataGrid
+        ]);
     }
 }
