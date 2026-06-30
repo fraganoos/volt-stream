@@ -17,36 +17,25 @@ public class SimpleDiscoveryResponder(IServer server, IHostEnvironment env, ICon
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-        socket.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-        // Har bir datagramma qaysi LOCAL (qabul qiluvchi) IP'ga kelganini bilish uchun:
-        socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
-        socket.Bind(new IPEndPoint(IPAddress.Any, ListenPort));
-
+        using var udp = new UdpClient(ListenPort);
         logger.LogInformation("📡 Discovery responder listening on UDP port {port}", ListenPort);
-
-        var buffer = new byte[1024];
 
         while (!stoppingToken.IsCancellationRequested)
         {
             try
             {
-                EndPoint remote = new IPEndPoint(IPAddress.Any, 0);
-                var result = await socket.ReceiveMessageFromAsync(buffer, SocketFlags.None, remote, stoppingToken);
-                var msg = Encoding.UTF8.GetString(buffer, 0, result.ReceivedBytes).Trim();
+                var result = await udp.ReceiveAsync(stoppingToken);
+                var msg = Encoding.UTF8.GetString(result.Buffer).Trim();
 
                 if (msg != "DISCOVER")
                     continue;
 
-                // result.PacketInformation.Address = DISCOVER aynan qaysi local IP'ga kelgani.
-                // Bu — client serverga ulanish uchun ishlatgan IP, demak kafolatlangan to'g'ri manzil.
-                var ip = ResolveIp(result.PacketInformation.Address);
+                var ip = ResolveIp();
                 var response = $"{ResolveScheme()}://{ip}:{ResolvePort()}";
 
                 var bytes = Encoding.UTF8.GetBytes(response);
-                await socket.SendToAsync(bytes, SocketFlags.None, result.RemoteEndPoint, stoppingToken);
-                logger.LogInformation("✅ Discovery response: {response} → {remote} (qabul qilingan IP: {local})",
-                    response, result.RemoteEndPoint, result.PacketInformation.Address);
+                await udp.SendAsync(bytes, bytes.Length, result.RemoteEndPoint);
+                logger.LogInformation("✅ Discovery response: {response} → {remote}", response, result.RemoteEndPoint);
             }
             catch (OperationCanceledException)
             {
@@ -99,7 +88,7 @@ public class SimpleDiscoveryResponder(IServer server, IHostEnvironment env, ICon
     }
 
 
-    private string ResolveIp(IPAddress? receivedOn)
+    private string ResolveIp()
     {
         // 1) Ixtiyoriy qo'lda override (faqat zarur bo'lsa). Odatda KERAK EMAS — avtomatik ishlaydi.
         var advertise = config["Discovery:AdvertiseIp"]
@@ -111,23 +100,9 @@ public class SimpleDiscoveryResponder(IServer server, IHostEnvironment env, ICon
         if (env.IsDevelopment())
             return "localhost";
 
-        // 2) ENG ISHONCHLI: DISCOVER aynan shu local IP'ga kelgan — ya'ni client serverga
-        //    aynan shu manzil orqali yetib kelgan. Demak bu IP o'sha client uchun kafolatlangan
-        //    to'g'ri (WiFi/LAN) manzil. Har so'rovda qayta hisoblanadi → IP o'zgarsa ham mos keladi.
-        if (IsUsableLanIp(receivedOn))
-            return receivedOn!.ToString();
-
-        // 3) Zaxira: tarmoq interfeyslaridan WiFi/LAN IPv4 ni avtomatik tanlash.
+        // 2) Avtomatik: WiFi/LAN tarmog'idagi tashqi IPv4 (host yoki host-network rejimida ishlaydi).
+        //    Har so'rovda qayta hisoblanadi → server IP'si o'zgarsa (DHCP) ham mos keladi.
         return GetLanIp() ?? GetOutboundIp() ?? "localhost";
-    }
-
-    // Loopback, link-local (169.254) va Docker-ichki (172.16–31) bo'lmagan, haqiqiy LAN IPv4mi?
-    private static bool IsUsableLanIp(IPAddress? ip)
-    {
-        if (ip is null || ip.AddressFamily != AddressFamily.InterNetwork || IPAddress.IsLoopback(ip))
-            return false;
-        var s = ip.ToString();
-        return !s.StartsWith("169.254") && !IsPrivate172(s);
     }
 
     // Faol jismoniy interfeys (Ethernet/Wi-Fi) dan private IPv4 ni tanlaydi;
